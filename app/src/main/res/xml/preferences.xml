@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:android="http://schemas.android.com/apk/res/android">
+
+
+    <SwitchPreference
+        android:defaultValue="false"
+        android:key="pointer"
+        android:title="中央ポインター" />
+    <EditTextPreference
+        android:defaultValue="1080"
+        android:key="image_width"
+        android:selectAllOnFocus="true"
+        android:singleLine="true"
+        android:title="画像の幅 (px)"
+        app:useSimpleSummaryProvider="true" />
+    <EditTextPreference
+        android:defaultValue="1980"
+        android:key="image_height"
+        android:selectAllOnFocus="true"
+        android:singleLine="true"
+        android:title="画像の高さ (px)"
+        app:useSimpleSummaryProvider="true" />
+    <EditTextPreference
+        android:defaultValue="true"
+        android:key="exposure_time"
+        android:selectAllOnFocus="true"
+        android:singleLine="true"
+        android:title="露光時間 (ns)"
+        app:useSimpleSummaryProvider="true" />
+    <EditTextPreference
+        android:defaultValue="Default value"
+        android:key="frame_duration"
+        android:selectAllOnFocus="true"
+        android:singleLine="true"
+        android:title="フレーム間隔 (ns)"
+        app:useSimpleSummaryProvider="true" />
+    <EditTextPreference
+        android:defaultValue="Default value"
+        android:key="sensitivity"
+        android:selectAllOnFocus="true"
+        android:singleLine="true"
+        android:title="ISO感度"
+        app:useSimpleSummaryProvider="true" />
+</PreferenceScreen>
