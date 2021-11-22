@@ -1,7 +1,12 @@
 package com.example.camera
 
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import android.hardware.camera2.CaptureRequest
 import android.icu.text.SimpleDateFormat
 import android.net.Uri
@@ -12,22 +17,23 @@ import android.view.*
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.camera2.interop.Camera2Interop
-import androidx.camera.core.*
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY
+import androidx.camera.core.ImageCaptureException
+import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
 import androidx.preference.PreferenceManager
 import com.example.camera.databinding.FragmentCameraBinding
-
 import java.io.File
-import java.nio.ByteBuffer
 import java.util.*
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
-class CameraFragment : Fragment() {
+class CameraFragment : Fragment(), SensorEventListener {
     private var _binding: FragmentCameraBinding? = null
     private val binding get() = _binding!!
     private var imageCapture: ImageCapture? = null
@@ -42,6 +48,9 @@ class CameraFragment : Fragment() {
     private var frameDuration: Long = 16666666
     private var sensitivity = 100
 
+    private lateinit var sensorManager: SensorManager
+    private var als: Sensor? = null
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -49,6 +58,9 @@ class CameraFragment : Fragment() {
     ): View {
         super.onCreateView(inflater, container, savedInstanceState)
         setHasOptionsMenu(true)
+
+        sensorManager = requireActivity().getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        als = sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT)
 
         _binding = FragmentCameraBinding.inflate(inflater, container, false)
         val view = binding.root
@@ -98,6 +110,15 @@ class CameraFragment : Fragment() {
         }
     }
 
+    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {
+
+    }
+
+    override fun onSensorChanged(event: SensorEvent) {
+        val lux = event.values[0].toInt()
+        binding.alsValueText.text = getString(R.string.lux_value, lux)
+    }
+
     private fun takePhoto() {
         val imageCapture = imageCapture ?: return
         val photoFile = File(
@@ -130,7 +151,7 @@ class CameraFragment : Fragment() {
     private fun startCamera() {
         val cameraProviderFuture = ProcessCameraProvider.getInstance(requireContext())
 
-        cameraProviderFuture.addListener(Runnable {
+        cameraProviderFuture.addListener({
             val cameraProvider: ProcessCameraProvider = cameraProviderFuture.get()
 
             val previewBuilder = Preview.Builder()
@@ -164,15 +185,6 @@ class CameraFragment : Fragment() {
 
             imageCapture = imageCaptureBuilder.build()
 
-
-            val imageAnalyzer = ImageAnalysis.Builder()
-                .build()
-                .also {
-                    it.setAnalyzer(cameraExecutor, LuminosityAnalyzer { luma ->
-//                        Log.d(TAG, "Average luminosity: $luma")
-                    })
-                }
-
             val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
 
             try {
@@ -201,6 +213,18 @@ class CameraFragment : Fragment() {
             mediaDir else requireContext().filesDir
     }
 
+    override fun onResume() {
+        super.onResume()
+        als?.also {
+            sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_FASTEST)
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        sensorManager.unregisterListener(this)
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         cameraExecutor.shutdown()
@@ -221,31 +245,8 @@ class CameraFragment : Fragment() {
         }
 
     companion object {
-        private const val TAG = "CameraXBasic"
+        private const val TAG = "Camera-ALS"
         private const val FILENAME_FORMAT = "yyyy-MM-dd-HH-mm-ss-SSS"
-        private const val REQUEST_CODE_PERMISSIONS = 10
         private val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
-    }
-
-    private class LuminosityAnalyzer(private val listener: LumaListner) : ImageAnalysis.Analyzer {
-
-        private fun ByteBuffer.toByteArray(): ByteArray {
-            rewind()
-            val data = ByteArray(remaining())
-            get(data)
-            return data
-        }
-
-        override fun analyze(image: ImageProxy) {
-
-            val buffer = image.planes[0].buffer
-            val data = buffer.toByteArray()
-            val pixels = data.map { it.toInt() and 0xFF }
-            val luma = pixels.average()
-
-            listener(luma)
-
-            image.close()
-        }
     }
 }
