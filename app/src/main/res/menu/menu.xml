@@ -3,6 +3,7 @@
     xmlns:android="http://schemas.android.com/apk/res/android">
     <item
         android:id="@+id/action_settings"
+        android:icon="@drawable/ic_baseline_settings_24"
         android:title="設定"
-        app:showAsAction="never" />
+        app:showAsAction="ifRoom" />
 </menu>

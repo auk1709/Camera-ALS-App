@@ -2,25 +2,22 @@ package com.example.camera
 
 import android.Manifest
 import android.content.pm.PackageManager
-import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CaptureRequest
 import android.icu.text.SimpleDateFormat
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
-import android.util.Rational
 import android.util.Size
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
+import android.view.*
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.camera2.interop.Camera2Interop
 import androidx.camera.core.*
 import androidx.camera.core.ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY
 import androidx.camera.lifecycle.ProcessCameraProvider
-import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
+import androidx.navigation.fragment.findNavController
 import androidx.preference.PreferenceManager
 import com.example.camera.databinding.FragmentCameraBinding
 
@@ -49,8 +46,9 @@ class CameraFragment : Fragment() {
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View? {
+    ): View {
         super.onCreateView(inflater, container, savedInstanceState)
+        setHasOptionsMenu(true)
 
         _binding = FragmentCameraBinding.inflate(inflater, container, false)
         val view = binding.root
@@ -69,9 +67,7 @@ class CameraFragment : Fragment() {
         if (allPermissionGranted()) {
             startCamera()
         } else {
-            requestPermissions(
-                REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS
-            )
+            requestPermission.launch(REQUIRED_PERMISSIONS)
         }
 
         binding.cameraCaptureButton.setOnClickListener { takePhoto() }
@@ -85,6 +81,21 @@ class CameraFragment : Fragment() {
         binding.pointer.visibility = if (isPointerVisible) View.VISIBLE else View.GONE
 
         return view
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu, inflater: MenuInflater) {
+        inflater.inflate(R.menu.menu, menu)
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem) = when (item.itemId) {
+        R.id.action_settings -> {
+            val action = CameraFragmentDirections.actionCameraFragmentToSettingsFragment()
+            findNavController().navigate(action)
+            true
+        }
+        else -> {
+            super.onOptionsItemSelected(item)
+        }
     }
 
     private fun takePhoto() {
@@ -124,25 +135,19 @@ class CameraFragment : Fragment() {
 
             val previewBuilder = Preview.Builder()
 
-
-            val previewExtender = Camera2Interop.Extender(previewBuilder)
-                .setCaptureRequestOption(
-                    CaptureRequest.CONTROL_MODE,
-                    CaptureRequest.CONTROL_MODE_OFF
-                )
-                .setCaptureRequestOption(
-                    CaptureRequest.CONTROL_AE_MODE,
-                    CaptureRequest.CONTROL_AE_MODE_OFF
-                )
-                .setCaptureRequestOption(
-                    CaptureRequest.CONTROL_AF_MODE,
-                    CaptureRequest.CONTROL_AF_MODE_OFF
-                )
-                .setCaptureRequestOption(
-                    CaptureRequest.CONTROL_AWB_MODE,
-                    CaptureRequest.CONTROL_AWB_MODE_OFF
-                )
-                .setCaptureRequestOption(CaptureRequest.SENSOR_SENSITIVITY, sensitivity)
+            Camera2Interop.Extender(previewBuilder).setCaptureRequestOption(
+                CaptureRequest.CONTROL_MODE,
+                CaptureRequest.CONTROL_MODE_OFF
+            ).setCaptureRequestOption(
+                CaptureRequest.CONTROL_AE_MODE,
+                CaptureRequest.CONTROL_AE_MODE_OFF
+            ).setCaptureRequestOption(
+                CaptureRequest.CONTROL_AF_MODE,
+                CaptureRequest.CONTROL_AF_MODE_OFF
+            ).setCaptureRequestOption(
+                CaptureRequest.CONTROL_AWB_MODE,
+                CaptureRequest.CONTROL_AWB_MODE_OFF
+            ).setCaptureRequestOption(CaptureRequest.SENSOR_SENSITIVITY, sensitivity)
                 .setCaptureRequestOption(CaptureRequest.SENSOR_FRAME_DURATION, frameDuration)
                 .setCaptureRequestOption(CaptureRequest.SENSOR_EXPOSURE_TIME, exposureTime)
 
@@ -201,14 +206,10 @@ class CameraFragment : Fragment() {
         cameraExecutor.shutdown()
     }
 
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == REQUEST_CODE_PERMISSIONS) {
-            if (allPermissionGranted()) {
+
+    private val requestPermission =
+        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+            if (it[Manifest.permission.CAMERA] == true) {
                 startCamera()
             } else {
                 Toast.makeText(
@@ -216,10 +217,8 @@ class CameraFragment : Fragment() {
                     "Permissions not granted by the user.",
                     Toast.LENGTH_SHORT
                 ).show()
-//                finish()
             }
         }
-    }
 
     companion object {
         private const val TAG = "CameraXBasic"
