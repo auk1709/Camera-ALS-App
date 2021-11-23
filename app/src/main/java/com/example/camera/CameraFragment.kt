@@ -51,6 +51,9 @@ class CameraFragment : Fragment(), SensorEventListener {
     private lateinit var sensorManager: SensorManager
     private var als: Sensor? = null
 
+    private lateinit var luxValueList: MutableMap<Long, Int>
+    private var isRecordingLux = false
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -83,6 +86,8 @@ class CameraFragment : Fragment(), SensorEventListener {
         }
 
         binding.cameraCaptureButton.setOnClickListener { takePhoto() }
+
+        binding.recordLuxButton.setOnClickListener { switchLuxRecord() }
 
         outputDirectory = getOutputDirectory()
 
@@ -117,6 +122,7 @@ class CameraFragment : Fragment(), SensorEventListener {
     override fun onSensorChanged(event: SensorEvent) {
         val lux = event.values[0].toInt()
         binding.alsValueText.text = getString(R.string.lux_value, lux)
+        if (isRecordingLux) luxValueList[System.currentTimeMillis()] = lux
     }
 
     private fun takePhoto() {
@@ -197,6 +203,41 @@ class CameraFragment : Fragment(), SensorEventListener {
                 Log.e(TAG, "Use case binding failed", exc)
             }
         }, ContextCompat.getMainExecutor(requireContext()))
+    }
+
+    private fun startLuxRecord() {
+        isRecordingLux = true
+        luxValueList = mutableMapOf()
+    }
+
+    private fun finishLuxRecord() {
+        isRecordingLux = false
+        val outputFile = File(
+            getOutputDirectory(),
+            SimpleDateFormat(
+                FILENAME_FORMAT,
+                Locale.JAPAN
+            ).format(System.currentTimeMillis()) + ".csv"
+        )
+        try {
+            luxValueList.forEach { (time, lux) ->
+                outputFile.absoluteFile.appendText("$time,$lux\n")
+            }
+//            requireContext().openFileOutput(outputFile.absolutePath, Context.MODE_PRIVATE).use {
+//                luxValueList.forEach { (time, lux) ->
+//                    it.write("$time,$lux\n".toByteArray())
+//                }
+//            }
+            Toast.makeText(context, "Save Lux Data, ${outputFile.absolutePath}", Toast.LENGTH_SHORT)
+                .show()
+        } catch (e: Exception) {
+            Toast.makeText(context, "Failed to save lux data", Toast.LENGTH_SHORT).show()
+            Log.e(TAG, "Failed to save lux data", e)
+        }
+    }
+
+    private fun switchLuxRecord() {
+        if (isRecordingLux) finishLuxRecord() else startLuxRecord()
     }
 
     private fun allPermissionGranted() = REQUIRED_PERMISSIONS.all {
