@@ -7,6 +7,7 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CaptureRequest
 import android.icu.text.SimpleDateFormat
 import android.net.Uri
@@ -14,14 +15,13 @@ import android.os.Bundle
 import android.util.Log
 import android.util.Size
 import android.view.*
+import android.widget.SeekBar
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.camera.camera2.interop.Camera2CameraInfo
 import androidx.camera.camera2.interop.Camera2Interop
-import androidx.camera.core.CameraSelector
-import androidx.camera.core.ImageCapture
+import androidx.camera.core.*
 import androidx.camera.core.ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY
-import androidx.camera.core.ImageCaptureException
-import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
@@ -47,6 +47,8 @@ class CameraFragment : Fragment(), SensorEventListener {
     private var exposureTime: Long = 20400000
     private var frameDuration: Long = 16666666
     private var sensitivity = 100
+    private var focusDistance = 0F
+    private var minFocusDistance = 0F
 
     private lateinit var sensorManager: SensorManager
     private var als: Sensor? = null
@@ -85,9 +87,23 @@ class CameraFragment : Fragment(), SensorEventListener {
             requestPermission.launch(REQUIRED_PERMISSIONS)
         }
 
+        binding.focusText.text =
+            getString(R.string.focus_text, String.format("%05.3f", focusDistance))
         binding.cameraCaptureButton.setOnClickListener { takePhoto() }
 
         binding.recordLuxButton.setOnClickListener { switchLuxRecord() }
+
+        binding.focusBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                focusDistance = progress * minFocusDistance / 100
+                binding.focusText.text =
+                    getString(R.string.focus_text, String.format("%02.3f", focusDistance))
+//                startCamera()
+            }
+
+            override fun onStartTrackingTouch(p0: SeekBar?) {}
+            override fun onStopTrackingTouch(p0: SeekBar?) {}
+        })
 
         outputDirectory = getOutputDirectory()
 
@@ -177,6 +193,7 @@ class CameraFragment : Fragment(), SensorEventListener {
             ).setCaptureRequestOption(CaptureRequest.SENSOR_SENSITIVITY, sensitivity)
                 .setCaptureRequestOption(CaptureRequest.SENSOR_FRAME_DURATION, frameDuration)
                 .setCaptureRequestOption(CaptureRequest.SENSOR_EXPOSURE_TIME, exposureTime)
+                .setCaptureRequestOption(CaptureRequest.LENS_FOCUS_DISTANCE, focusDistance)
 
             val preview = previewBuilder
                 .setTargetResolution(Size(imageWidth, imageHeight))
@@ -196,9 +213,12 @@ class CameraFragment : Fragment(), SensorEventListener {
             try {
                 cameraProvider.unbindAll()
 
-                cameraProvider.bindToLifecycle(
+                val camera = cameraProvider.bindToLifecycle(
                     this, cameraSelector, preview, imageCapture,
                 )
+                val camChars = Camera2CameraInfo.extractCameraCharacteristics(camera.cameraInfo)
+                minFocusDistance =
+                    camChars.get(CameraCharacteristics.LENS_INFO_MINIMUM_FOCUS_DISTANCE)!!
             } catch (exc: Exception) {
                 Log.e(TAG, "Use case binding failed", exc)
             }
@@ -223,11 +243,6 @@ class CameraFragment : Fragment(), SensorEventListener {
             luxValueList.forEach { (time, lux) ->
                 outputFile.absoluteFile.appendText("$time,$lux\n")
             }
-//            requireContext().openFileOutput(outputFile.absolutePath, Context.MODE_PRIVATE).use {
-//                luxValueList.forEach { (time, lux) ->
-//                    it.write("$time,$lux\n".toByteArray())
-//                }
-//            }
             Toast.makeText(context, "Save Lux Data, ${outputFile.absolutePath}", Toast.LENGTH_SHORT)
                 .show()
         } catch (e: Exception) {

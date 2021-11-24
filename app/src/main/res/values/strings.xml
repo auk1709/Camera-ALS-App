@@ -17,4 +17,5 @@
     <string name="lux_value">%d lx</string>
     <string name="capture_button_description">shutter</string>
     <string name="pointer_description">point the center of the image</string>
+    <string name="focus_text">Focus: %s</string>
 </resources>
