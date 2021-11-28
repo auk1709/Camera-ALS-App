@@ -136,4 +136,20 @@
         app:layout_constraintTop_toTopOf="@+id/timer_toggle_button"
         tools:text="10" />
 
+    <ImageButton
+        android:id="@+id/video_capture_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="32dp"
+        android:background="@color/purple_500"
+        android:contentDescription="take a video"
+        android:minWidth="48dp"
+        android:minHeight="48dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@+id/camera_capture_button"
+        app:srcCompat="@drawable/ic_baseline_videocam_24" />
+
 </androidx.constraintlayout.widget.ConstraintLayout>

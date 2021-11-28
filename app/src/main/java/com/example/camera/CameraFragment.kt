@@ -26,7 +26,10 @@ import androidx.camera.camera2.interop.CaptureRequestOptions
 import androidx.camera.core.*
 import androidx.camera.core.ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY
 import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.video.*
+import androidx.camera.video.VideoCapture
 import androidx.core.content.ContextCompat
+import androidx.core.util.Consumer
 import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
 import androidx.preference.PreferenceManager
@@ -40,6 +43,9 @@ class CameraFragment : Fragment(), SensorEventListener {
     private var _binding: FragmentCameraBinding? = null
     private val binding get() = _binding!!
     private var imageCapture: ImageCapture? = null
+    private lateinit var videoCapture: VideoCapture<Recorder>
+    private var activeRecording: ActiveRecording? = null
+    private lateinit var recordingState: VideoRecordEvent
 
     private lateinit var outputDirectory: File
     private lateinit var cameraExecutor: ExecutorService
@@ -101,6 +107,7 @@ class CameraFragment : Fragment(), SensorEventListener {
         binding.focusText.text =
             getString(R.string.focus_text, String.format("%05.3f", focusDistance))
         binding.cameraCaptureButton.setOnClickListener { takePhoto() }
+        binding.videoCaptureButton.setOnClickListener { takeVideo() }
 
         binding.recordLuxButton.setOnClickListener { switchLuxRecord() }
 
@@ -210,6 +217,45 @@ class CameraFragment : Fragment(), SensorEventListener {
         )
     }
 
+    private fun takeVideo() {
+        val name = SimpleDateFormat(
+            FILENAME_FORMAT,
+            Locale.JAPAN
+        ).format(System.currentTimeMillis()) + ".mp4"
+        val videoFile = File(outputDirectory, name)
+        val outputOption = FileOutputOptions.Builder(videoFile).build()
+
+        activeRecording = videoCapture.output.prepareRecording(requireContext(), outputOption)
+            .withEventListener(ContextCompat.getMainExecutor(requireContext()), captureListener)
+            .start()
+    }
+
+    private val captureListener = Consumer<VideoRecordEvent> { event ->
+        if (event !is VideoRecordEvent.Status)
+            recordingState = event
+
+        when (event) {
+            is VideoRecordEvent.Start -> {
+                binding.videoCaptureButton.apply {
+                    setOnClickListener {
+                        val recording = activeRecording
+                        if (recording != null) {
+                            recording.stop()
+                            activeRecording = null
+                        }
+                    }
+                    setBackgroundColor(ContextCompat.getColor(requireContext(), R.color.red))
+                }
+            }
+            is VideoRecordEvent.Finalize -> {
+                binding.videoCaptureButton.apply {
+                    setOnClickListener { takeVideo() }
+                    setBackgroundColor(ContextCompat.getColor(requireContext(), R.color.purple_500))
+                }
+            }
+        }
+    }
+
     private fun startCamera() {
         val cameraProviderFuture = ProcessCameraProvider.getInstance(requireContext())
 
@@ -248,12 +294,25 @@ class CameraFragment : Fragment(), SensorEventListener {
 
             imageCapture = imageCaptureBuilder.build()
 
+            val qualitySelector = QualitySelector
+                .firstTry(QualitySelector.QUALITY_UHD)
+                .thenTry(QualitySelector.QUALITY_FHD)
+                .thenTry(QualitySelector.QUALITY_HD)
+                .finallyTry(
+                    QualitySelector.QUALITY_SD,
+                    QualitySelector.FALLBACK_STRATEGY_LOWER
+                )
+            val recorder = Recorder.Builder()
+                .setExecutor(cameraExecutor).setQualitySelector(qualitySelector)
+                .build()
+            videoCapture = VideoCapture.withOutput(recorder)
+
             val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
 
-            cameraProvider.unbindAll()
             try {
+                cameraProvider.unbindAll()
                 val camera = cameraProvider.bindToLifecycle(
-                    this, cameraSelector, preview, imageCapture,
+                    this, cameraSelector, preview, imageCapture, videoCapture
                 )
                 cameraControl = camera.cameraControl
                 val camChars = Camera2CameraInfo.extractCameraCharacteristics(camera.cameraInfo)
