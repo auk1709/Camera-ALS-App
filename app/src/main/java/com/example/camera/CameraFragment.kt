@@ -19,13 +19,12 @@ import android.view.*
 import android.widget.SeekBar
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.camera.camera2.interop.Camera2CameraControl
 import androidx.camera.camera2.interop.Camera2CameraInfo
 import androidx.camera.camera2.interop.Camera2Interop
-import androidx.camera.core.CameraSelector
-import androidx.camera.core.ImageCapture
+import androidx.camera.camera2.interop.CaptureRequestOptions
+import androidx.camera.core.*
 import androidx.camera.core.ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY
-import androidx.camera.core.ImageCaptureException
-import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
@@ -64,6 +63,8 @@ class CameraFragment : Fragment(), SensorEventListener {
 
     private var useTimer = false
     private lateinit var timer: CountDownTimer
+
+    private lateinit var cameraControl: CameraControl
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -113,17 +114,6 @@ class CameraFragment : Fragment(), SensorEventListener {
             binding.timerTimeText.visibility = View.GONE
         }
 
-        binding.focusBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                focusDistance = progress * minFocusDistance / 100
-                binding.focusText.text =
-                    getString(R.string.focus_text, String.format("%02.3f", focusDistance))
-            }
-
-            override fun onStartTrackingTouch(p0: SeekBar?) {}
-            override fun onStopTrackingTouch(p0: SeekBar?) {}
-        })
-
         outputDirectory = getOutputDirectory()
 
         cameraExecutor = Executors.newSingleThreadExecutor()
@@ -131,6 +121,25 @@ class CameraFragment : Fragment(), SensorEventListener {
 
         val isPointerVisible = sharedPreferences.getBoolean("pointer", false)
         binding.pointer.visibility = if (isPointerVisible) View.VISIBLE else View.GONE
+
+        binding.focusBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                focusDistance = progress * minFocusDistance / 100
+
+                val cameraCaptureRequestOptions = CaptureRequestOptions.Builder()
+                    .setCaptureRequestOption(CaptureRequest.LENS_FOCUS_DISTANCE, focusDistance)
+                    .build()
+
+                Camera2CameraControl.from(cameraControl)
+                    .addCaptureRequestOptions(cameraCaptureRequestOptions)
+
+                binding.focusText.text =
+                    getString(R.string.focus_text, String.format("%02.3f", focusDistance))
+            }
+
+            override fun onStartTrackingTouch(p0: SeekBar?) {}
+            override fun onStopTrackingTouch(p0: SeekBar?) {}
+        })
 
         return view
     }
@@ -224,7 +233,7 @@ class CameraFragment : Fragment(), SensorEventListener {
             ).setCaptureRequestOption(CaptureRequest.SENSOR_SENSITIVITY, sensitivity)
                 .setCaptureRequestOption(CaptureRequest.SENSOR_FRAME_DURATION, frameDuration)
                 .setCaptureRequestOption(CaptureRequest.SENSOR_EXPOSURE_TIME, exposureTime)
-                .setCaptureRequestOption(CaptureRequest.LENS_FOCUS_DISTANCE, focusDistance)
+//                .setCaptureRequestOption(CaptureRequest.LENS_FOCUS_DISTANCE, focusDistance)
 
             val preview = previewBuilder
                 .setTargetResolution(Size(imageWidth, imageHeight))
@@ -241,12 +250,12 @@ class CameraFragment : Fragment(), SensorEventListener {
 
             val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
 
+            cameraProvider.unbindAll()
             try {
-                cameraProvider.unbindAll()
-
                 val camera = cameraProvider.bindToLifecycle(
                     this, cameraSelector, preview, imageCapture,
                 )
+                cameraControl = camera.cameraControl
                 val camChars = Camera2CameraInfo.extractCameraCharacteristics(camera.cameraInfo)
                 minFocusDistance =
                     camChars.get(CameraCharacteristics.LENS_INFO_MINIMUM_FOCUS_DISTANCE)!!
