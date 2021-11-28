@@ -12,6 +12,7 @@ import android.hardware.camera2.CaptureRequest
 import android.icu.text.SimpleDateFormat
 import android.net.Uri
 import android.os.Bundle
+import android.os.CountDownTimer
 import android.util.Log
 import android.util.Size
 import android.view.*
@@ -20,8 +21,11 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.camera2.interop.Camera2CameraInfo
 import androidx.camera.camera2.interop.Camera2Interop
-import androidx.camera.core.*
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY
+import androidx.camera.core.ImageCaptureException
+import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
@@ -50,11 +54,16 @@ class CameraFragment : Fragment(), SensorEventListener {
     private var focusDistance = 0F
     private var minFocusDistance = 0F
 
+    private var timerTime = 5000L
+
     private lateinit var sensorManager: SensorManager
     private var als: Sensor? = null
 
     private lateinit var luxValueList: MutableMap<Long, Int>
     private var isRecordingLux = false
+
+    private var useTimer = false
+    private lateinit var timer: CountDownTimer
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -80,6 +89,7 @@ class CameraFragment : Fragment(), SensorEventListener {
         frameDuration = sharedPreferences.getString("frame_duration", "16666666")?.toLongOrNull()
             ?: 16666666
         sensitivity = sharedPreferences.getString("sensitivity", "100")?.toIntOrNull() ?: 100
+        timerTime = sharedPreferences.getString("timer_time", "5000")?.toLongOrNull() ?: 5000L
 
         if (allPermissionGranted()) {
             startCamera()
@@ -93,12 +103,21 @@ class CameraFragment : Fragment(), SensorEventListener {
 
         binding.recordLuxButton.setOnClickListener { switchLuxRecord() }
 
+        binding.timerToggleButton.setOnClickListener { toggleTimer() }
+        binding.timerTimeText.text = (timerTime / 1000).toString()
+        if (useTimer) {
+            binding.timerToggleButton.setImageResource(R.drawable.ic_baseline_timer_24)
+            binding.timerTimeText.visibility = View.VISIBLE
+        } else {
+            binding.timerToggleButton.setImageResource(R.drawable.ic_baseline_timer_off_24)
+            binding.timerTimeText.visibility = View.GONE
+        }
+
         binding.focusBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 focusDistance = progress * minFocusDistance / 100
                 binding.focusText.text =
                     getString(R.string.focus_text, String.format("%02.3f", focusDistance))
-//                startCamera()
             }
 
             override fun onStartTrackingTouch(p0: SeekBar?) {}
@@ -139,6 +158,18 @@ class CameraFragment : Fragment(), SensorEventListener {
         val lux = event.values[0].toInt()
         binding.alsValueText.text = getString(R.string.lux_value, lux)
         if (isRecordingLux) luxValueList[System.currentTimeMillis()] = lux
+    }
+
+    private fun toggleTimer() {
+        useTimer = !useTimer
+        if (useTimer) {
+            binding.timerToggleButton.setImageResource(R.drawable.ic_baseline_timer_24)
+            binding.timerTimeText.visibility = View.VISIBLE
+        } else {
+            binding.timerToggleButton.setImageResource(R.drawable.ic_baseline_timer_off_24)
+            binding.timerTimeText.visibility = View.GONE
+        }
+        Log.d(TAG, "toggle timer")
     }
 
     private fun takePhoto() {
@@ -228,6 +259,24 @@ class CameraFragment : Fragment(), SensorEventListener {
     private fun startLuxRecord() {
         isRecordingLux = true
         luxValueList = mutableMapOf()
+        binding.recordLuxButton.setBackgroundColor(
+            ContextCompat.getColor(
+                requireContext(),
+                R.color.red
+            )
+        )
+        if (useTimer) {
+            timer = object : CountDownTimer(timerTime, 1000) {
+                override fun onFinish() {
+                    finishLuxRecord()
+                }
+
+                override fun onTick(time: Long) {
+                    binding.timerTimeText.text = (time / 1000).toString()
+                }
+            }
+            timer.start()
+        }
     }
 
     private fun finishLuxRecord() {
@@ -249,6 +298,11 @@ class CameraFragment : Fragment(), SensorEventListener {
             Toast.makeText(context, "Failed to save lux data", Toast.LENGTH_SHORT).show()
             Log.e(TAG, "Failed to save lux data", e)
         }
+        binding.recordLuxButton.setBackgroundColor(
+            ContextCompat.getColor(requireContext(), R.color.purple_500)
+        )
+        timer.cancel()
+        binding.timerTimeText.text = (timerTime / 1000).toString()
     }
 
     private fun switchLuxRecord() {

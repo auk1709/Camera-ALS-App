@@ -42,4 +42,11 @@
         android:singleLine="true"
         android:title="ISO感度"
         app:useSimpleSummaryProvider="true" />
+    <EditTextPreference
+        android:defaultValue="Default value"
+        android:key="timer_time"
+        android:selectAllOnFocus="true"
+        android:singleLine="true"
+        android:title="タイマーの時間 (ms)"
+        app:useSimpleSummaryProvider="true" />
 </PreferenceScreen>

@@ -30,5 +30,9 @@ class SettingsFragment : PreferenceFragmentCompat() {
         sensitivityPreference?.setOnBindEditTextListener { editText ->
             editText.inputType = InputType.TYPE_CLASS_NUMBER
         }
+        val timerPreference: EditTextPreference? = findPreference("timer_time")
+        timerPreference?.setOnBindEditTextListener { editText ->
+            editText.inputType = InputType.TYPE_CLASS_NUMBER
+        }
     }
 }
