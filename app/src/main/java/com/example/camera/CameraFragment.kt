@@ -228,6 +228,23 @@ class CameraFragment : Fragment(), SensorEventListener {
         activeRecording = videoCapture.output.prepareRecording(requireContext(), outputOption)
             .withEventListener(ContextCompat.getMainExecutor(requireContext()), captureListener)
             .start()
+
+        if (useTimer) {
+            timer = object : CountDownTimer(timerTime, 1000) {
+                override fun onFinish() {
+                    val recording = activeRecording
+                    if (recording != null) {
+                        recording.stop()
+                        activeRecording = null
+                    }
+                }
+
+                override fun onTick(time: Long) {
+                    binding.timerTimeText.text = (time / 1000).toString()
+                }
+            }
+            timer.start()
+        }
     }
 
     private val captureListener = Consumer<VideoRecordEvent> { event ->
@@ -252,6 +269,8 @@ class CameraFragment : Fragment(), SensorEventListener {
                     setOnClickListener { takeVideo() }
                     setBackgroundColor(ContextCompat.getColor(requireContext(), R.color.purple_500))
                 }
+                timer.cancel()
+                binding.timerTimeText.text = (timerTime / 1000).toString()
             }
         }
     }
@@ -279,7 +298,6 @@ class CameraFragment : Fragment(), SensorEventListener {
             ).setCaptureRequestOption(CaptureRequest.SENSOR_SENSITIVITY, sensitivity)
                 .setCaptureRequestOption(CaptureRequest.SENSOR_FRAME_DURATION, frameDuration)
                 .setCaptureRequestOption(CaptureRequest.SENSOR_EXPOSURE_TIME, exposureTime)
-//                .setCaptureRequestOption(CaptureRequest.LENS_FOCUS_DISTANCE, focusDistance)
 
             val preview = previewBuilder
                 .setTargetResolution(Size(imageWidth, imageHeight))
