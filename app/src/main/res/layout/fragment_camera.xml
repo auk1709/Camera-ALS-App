@@ -22,11 +22,13 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:contentDescription="@string/pointer_description"
+        android:maxWidth="16dp"
+        android:maxHeight="16dp"
         app:layout_constraintBottom_toBottomOf="@+id/viewFinder"
         app:layout_constraintEnd_toEndOf="@+id/viewFinder"
         app:layout_constraintStart_toStartOf="@+id/viewFinder"
         app:layout_constraintTop_toTopOf="@+id/viewFinder"
-        app:srcCompat="@android:drawable/ic_menu_add" />
+        app:srcCompat="@drawable/ic_baseline_add_24" />
 
     <ImageButton
         android:id="@+id/camera_capture_button"
