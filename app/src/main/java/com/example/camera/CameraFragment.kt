@@ -148,6 +148,14 @@ class CameraFragment : Fragment(), SensorEventListener {
             override fun onStopTrackingTouch(p0: SeekBar?) {}
         })
 
+        timer = object : CountDownTimer(timerTime, 1000) {
+            override fun onFinish() {
+            }
+
+            override fun onTick(time: Long) {
+            }
+        }
+
         return view
     }
 
