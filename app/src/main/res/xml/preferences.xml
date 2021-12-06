@@ -22,31 +22,38 @@
         android:title="画像の高さ (px)"
         app:useSimpleSummaryProvider="true" />
     <EditTextPreference
-        android:defaultValue="true"
+        android:defaultValue="10000000"
         android:key="exposure_time"
         android:selectAllOnFocus="true"
         android:singleLine="true"
         android:title="露光時間 (ns)"
         app:useSimpleSummaryProvider="true" />
     <EditTextPreference
-        android:defaultValue="Default value"
+        android:defaultValue="16666666"
         android:key="frame_duration"
         android:selectAllOnFocus="true"
         android:singleLine="true"
         android:title="フレーム間隔 (ns)"
         app:useSimpleSummaryProvider="true" />
     <EditTextPreference
-        android:defaultValue="Default value"
+        android:defaultValue="200"
         android:key="sensitivity"
         android:selectAllOnFocus="true"
         android:singleLine="true"
         android:title="ISO感度"
         app:useSimpleSummaryProvider="true" />
     <EditTextPreference
-        android:defaultValue="Default value"
+        android:defaultValue="10000"
         android:key="timer_time"
         android:selectAllOnFocus="true"
         android:singleLine="true"
         android:title="タイマーの時間 (ms)"
+        app:useSimpleSummaryProvider="true" />
+    <EditTextPreference
+        android:defaultValue="5"
+        android:key="interval_time"
+        android:selectAllOnFocus="true"
+        android:singleLine="true"
+        android:title="インターバル (s)"
         app:useSimpleSummaryProvider="true" />
 </PreferenceScreen>

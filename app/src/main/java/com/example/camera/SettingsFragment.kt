@@ -34,5 +34,9 @@ class SettingsFragment : PreferenceFragmentCompat() {
         timerPreference?.setOnBindEditTextListener { editText ->
             editText.inputType = InputType.TYPE_CLASS_NUMBER
         }
+        val intervalPreference: EditTextPreference? = findPreference("interval_time")
+        intervalPreference?.setOnBindEditTextListener { editText ->
+            editText.inputType = InputType.TYPE_CLASS_NUMBER
+        }
     }
 }

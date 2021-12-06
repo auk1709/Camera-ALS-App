@@ -13,6 +13,7 @@ import android.icu.text.SimpleDateFormat
 import android.net.Uri
 import android.os.Bundle
 import android.os.CountDownTimer
+import android.os.Handler
 import android.util.Log
 import android.util.Size
 import android.view.*
@@ -60,6 +61,7 @@ class CameraFragment : Fragment(), SensorEventListener {
     private var minFocusDistance = 0F
 
     private var timerTime = 5000L
+    private var intervalTime = 5000L
 
     private lateinit var sensorManager: SensorManager
     private var als: Sensor? = null
@@ -69,6 +71,9 @@ class CameraFragment : Fragment(), SensorEventListener {
 
     private var useTimer = false
     private lateinit var timer: CountDownTimer
+    private var setInterval = false
+    private lateinit var intervalTimer: Timer
+    private val handler = Handler()
 
     private lateinit var cameraControl: CameraControl
 
@@ -97,6 +102,9 @@ class CameraFragment : Fragment(), SensorEventListener {
             ?: 16666666
         sensitivity = sharedPreferences.getString("sensitivity", "100")?.toIntOrNull() ?: 100
         timerTime = sharedPreferences.getString("timer_time", "5000")?.toLongOrNull() ?: 5000L
+        intervalTime = sharedPreferences.getString("interval_time", "5000")?.toLongOrNull()
+            ?.times(1000)
+            ?: 5000L
 
         if (allPermissionGranted()) {
             startCamera()
@@ -120,6 +128,7 @@ class CameraFragment : Fragment(), SensorEventListener {
             binding.timerToggleButton.setImageResource(R.drawable.ic_baseline_timer_off_24)
             binding.timerTimeText.visibility = View.GONE
         }
+
 
         outputDirectory = getOutputDirectory()
 
@@ -154,6 +163,22 @@ class CameraFragment : Fragment(), SensorEventListener {
 
             override fun onTick(time: Long) {
             }
+        }
+
+        binding.cameraSwitch.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked) {
+                if (allPermissionGranted()) {
+                    startCamera()
+                } else {
+                    requestPermission.launch(REQUIRED_PERMISSIONS)
+                }
+            } else {
+                pauseCamera()
+            }
+        }
+
+        binding.intervalSwitch.setOnCheckedChangeListener { _, isChecked ->
+            setInterval = isChecked
         }
 
         return view
@@ -322,6 +347,7 @@ class CameraFragment : Fragment(), SensorEventListener {
 
             val qualitySelector = QualitySelector
                 .firstTry(QualitySelector.QUALITY_UHD)
+//                .firstTry(QualitySelector.QUALITY_FHD)
                 .thenTry(QualitySelector.QUALITY_FHD)
                 .thenTry(QualitySelector.QUALITY_HD)
                 .finallyTry(
@@ -344,10 +370,20 @@ class CameraFragment : Fragment(), SensorEventListener {
                 val camChars = Camera2CameraInfo.extractCameraCharacteristics(camera.cameraInfo)
                 minFocusDistance =
                     camChars.get(CameraCharacteristics.LENS_INFO_MINIMUM_FOCUS_DISTANCE)!!
+                binding.cameraCaptureButton.isEnabled = true
+                binding.videoCaptureButton.isEnabled = true
+                binding.cameraOffText.visibility = View.GONE
             } catch (exc: Exception) {
                 Log.e(TAG, "Use case binding failed", exc)
             }
         }, ContextCompat.getMainExecutor(requireContext()))
+    }
+
+    private fun pauseCamera() {
+        ProcessCameraProvider.getInstance(requireContext()).get().unbindAll()
+        binding.cameraCaptureButton.isEnabled = false
+        binding.videoCaptureButton.isEnabled = false
+        binding.cameraOffText.visibility = View.VISIBLE
     }
 
     private fun startLuxRecord() {
@@ -370,6 +406,23 @@ class CameraFragment : Fragment(), SensorEventListener {
                 }
             }
             timer.start()
+        }
+        if (setInterval) {
+            binding.cameraSwitch.isChecked = false
+            intervalTimer = Timer()
+            intervalTimer.scheduleAtFixedRate(object : TimerTask() {
+                override fun run() {
+                    handler.post {
+                        binding.cameraSwitch.isChecked = true
+                        handler.postDelayed(Runnable {
+                            takePhoto()
+                        }, 1000)
+                        handler.postDelayed(Runnable {
+                            binding.cameraSwitch.isChecked = false
+                        }, 2000)
+                    }
+                }
+            }, intervalTime - 1000, intervalTime)
         }
     }
 
@@ -396,6 +449,7 @@ class CameraFragment : Fragment(), SensorEventListener {
             ContextCompat.getColor(requireContext(), R.color.purple_500)
         )
         timer.cancel()
+        intervalTimer.cancel()
         binding.timerTimeText.text = (timerTime / 1000).toString()
     }
 
