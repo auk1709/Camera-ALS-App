@@ -72,7 +72,7 @@ class CameraFragment : Fragment(), SensorEventListener {
     private var useTimer = false
     private lateinit var timer: CountDownTimer
     private var setInterval = false
-    private lateinit var intervalTimer: Timer
+    private var intervalTimer: Timer = Timer()
     private val handler = Handler()
 
     private lateinit var cameraControl: CameraControl
@@ -206,7 +206,7 @@ class CameraFragment : Fragment(), SensorEventListener {
     override fun onSensorChanged(event: SensorEvent) {
         val lux = event.values[0].toInt()
         binding.alsValueText.text = getString(R.string.lux_value, lux)
-        if (isRecordingLux) luxValueList[System.currentTimeMillis()] = lux
+        if (isRecordingLux) luxValueList[System.nanoTime()] = lux
     }
 
     private fun toggleTimer() {
@@ -243,7 +243,7 @@ class CameraFragment : Fragment(), SensorEventListener {
                 override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
                     val savedUri = Uri.fromFile(photoFile)
                     val msg = "Photo capture succeeded: $savedUri"
-                    Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+//                    Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                     Log.d(TAG, msg)
                 }
             }
