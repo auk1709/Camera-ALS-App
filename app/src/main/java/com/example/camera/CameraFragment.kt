@@ -10,6 +10,7 @@ import android.hardware.SensorManager
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CaptureRequest
 import android.icu.text.SimpleDateFormat
+import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Bundle
 import android.os.CountDownTimer
@@ -399,6 +400,12 @@ class CameraFragment : Fragment(), SensorEventListener {
             timer = object : CountDownTimer(timerTime, 1000) {
                 override fun onFinish() {
                     finishLuxRecord()
+                    val uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+                    val ringtone = RingtoneManager.getRingtone(context, uri)
+                    ringtone.play()
+                    handler.postDelayed({
+                        ringtone.stop()
+                    }, 3000)
                 }
 
                 override fun onTick(time: Long) {
