@@ -30,6 +30,7 @@ import androidx.camera.core.ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.video.*
 import androidx.camera.video.VideoCapture
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.util.Consumer
 import androidx.fragment.app.Fragment
@@ -46,7 +47,7 @@ class CameraFragment : Fragment(), SensorEventListener {
     private val binding get() = _binding!!
     private var imageCapture: ImageCapture? = null
     private lateinit var videoCapture: VideoCapture<Recorder>
-    private var activeRecording: ActiveRecording? = null
+    private var recording: Recording? = null
     private lateinit var recordingState: VideoRecordEvent
 
     private lateinit var outputDirectory: File
@@ -92,7 +93,7 @@ class CameraFragment : Fragment(), SensorEventListener {
         _binding = FragmentCameraBinding.inflate(inflater, container, false)
         val view = binding.root
 
-        val sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context)
+        val sharedPreferences = PreferenceManager.getDefaultSharedPreferences(requireContext())
 
         imageWidth = sharedPreferences.getString("image_width", "1080")?.toIntOrNull() ?: 1080
         imageHeight = sharedPreferences.getString("image_height", "1920")?.toIntOrNull() ?: 1920
@@ -244,7 +245,6 @@ class CameraFragment : Fragment(), SensorEventListener {
                 override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
                     val savedUri = Uri.fromFile(photoFile)
                     val msg = "Photo capture succeeded: $savedUri"
-//                    Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                     Log.d(TAG, msg)
                 }
             }
@@ -259,18 +259,14 @@ class CameraFragment : Fragment(), SensorEventListener {
         val videoFile = File(outputDirectory, name)
         val outputOption = FileOutputOptions.Builder(videoFile).build()
 
-        activeRecording = videoCapture.output.prepareRecording(requireContext(), outputOption)
-            .withEventListener(ContextCompat.getMainExecutor(requireContext()), captureListener)
-            .start()
+        recording = videoCapture.output
+            .prepareRecording(requireContext(), outputOption)
+            .start(ContextCompat.getMainExecutor(requireContext()),captureListener)
 
         if (useTimer) {
             timer = object : CountDownTimer(timerTime, 1000) {
                 override fun onFinish() {
-                    val recording = activeRecording
-                    if (recording != null) {
-                        recording.stop()
-                        activeRecording = null
-                    }
+                    recording?.stop()
                 }
 
                 override fun onTick(time: Long) {
@@ -289,11 +285,7 @@ class CameraFragment : Fragment(), SensorEventListener {
             is VideoRecordEvent.Start -> {
                 binding.videoCaptureButton.apply {
                     setOnClickListener {
-                        val recording = activeRecording
-                        if (recording != null) {
-                            recording.stop()
-                            activeRecording = null
-                        }
+                        recording?.stop()
                     }
                     setBackgroundColor(ContextCompat.getColor(requireContext(), R.color.red))
                 }
@@ -346,15 +338,11 @@ class CameraFragment : Fragment(), SensorEventListener {
 
             imageCapture = imageCaptureBuilder.build()
 
-            val qualitySelector = QualitySelector
-                .firstTry(QualitySelector.QUALITY_UHD)
-//                .firstTry(QualitySelector.QUALITY_FHD)
-                .thenTry(QualitySelector.QUALITY_FHD)
-                .thenTry(QualitySelector.QUALITY_HD)
-                .finallyTry(
-                    QualitySelector.QUALITY_SD,
-                    QualitySelector.FALLBACK_STRATEGY_LOWER
-                )
+            val qualitySelector = QualitySelector.fromOrderedList(
+                listOf(Quality.UHD, Quality.FHD, Quality.HD, Quality.SD),
+                FallbackStrategy.lowerQualityOrHigherThan(Quality.SD)
+            )
+
             val recorder = Recorder.Builder()
                 .setExecutor(cameraExecutor).setQualitySelector(qualitySelector)
                 .build()
@@ -423,13 +411,13 @@ class CameraFragment : Fragment(), SensorEventListener {
                         binding.cameraSwitch.isChecked = true
                         handler.postDelayed(Runnable {
                             takePhoto()
-                        }, 1000)
+                        }, 2000)
                         handler.postDelayed(Runnable {
                             binding.cameraSwitch.isChecked = false
-                        }, 2000)
+                        }, 3000)
                     }
                 }
-            }, intervalTime - 1000, intervalTime)
+            }, intervalTime - 2000, intervalTime)
         }
     }
 
